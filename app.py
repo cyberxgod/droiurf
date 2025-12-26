@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import requests
 import os
+import json
 
 app = Flask(__name__)
 
@@ -25,23 +26,23 @@ def home():
 def get_info():
     num = request.args.get("num", "").strip()
 
-    # validation
     if not num.isdigit() or not (10 <= len(num) <= 12):
         return jsonify({
             "error": "Invalid number format",
-            "example": "/get?num=9876543210",
             "owner": OWNER
         }), 400
 
     try:
-        url = API_URL.format(num)
-        r = requests.get(url, headers=HEADERS, timeout=10)
+        r = requests.get(
+            API_URL.format(num),
+            headers=HEADERS,
+            timeout=10
+        )
 
-        # ngrok html protection check
+        # ngrok html page check
         if r.text.lstrip().startswith("<!DOCTYPE html"):
             return jsonify({
                 "error": "ngrok security page detected",
-                "hint": "Free ngrok blocks API requests",
                 "owner": OWNER
             }), 502
 
@@ -52,18 +53,19 @@ def get_info():
                 "owner": OWNER
             }), 502
 
-        data = r.text.strip()
-        if not data:
-            return jsonify({
-                "error": "No data found",
-                "owner": OWNER
-            }), 404
+        raw = r.text.strip()
+
+        # 🔥 FIX HERE
+        try:
+            parsed_data = json.loads(raw)
+        except json.JSONDecodeError:
+            parsed_data = raw
 
         return jsonify({
             "number": num,
-            "data": data,
-            "source": "ngrok-api",
-            "owner": OWNER
+            "data": parsed_data,
+            "owner": OWNER,
+            "source": "ngrok-api"
         })
 
     except requests.exceptions.Timeout:
