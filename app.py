@@ -4,48 +4,73 @@ import os
 
 app = Flask(__name__)
 
-API_URL = "https://xploide.site/Api.php?num={}"
+API_URL = "https://prowessed-meta-semioratorically.ngrok-free.dev/search?num={}"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (API-Proxy)",
+    "Accept": "*/*"
+}
+
+OWNER = "@ravenxankit"
 
 @app.route("/")
 def home():
     return jsonify({
-        "message": "API is running!",
-        "usage": "/get?num=987654321",
-        "owner": "@Saksham24_11"
+        "status": "running ✅",
+        "usage": "/get?num=9876543210",
+        "owner": OWNER
     })
 
 @app.route("/get")
 def get_info():
-    num = request.args.get("num")
+    num = request.args.get("num", "").strip()
 
-    if not num or not num.isdigit():
+    if not num.isdigit() or not (10 <= len(num) <= 12):
         return jsonify({
-            "error": "Please provide a valid number ?num=1234567890",
-            "owner": "@Saksham24_11"
-        })
+            "error": "Invalid number format",
+            "example": "/get?num=9876543210",
+            "owner": OWNER
+        }), 400
 
     try:
         url = API_URL.format(num)
-        response = requests.get(url, timeout=10)
+        r = requests.get(url, headers=HEADERS, timeout=10)
 
-        if response.status_code == 200 and response.text.strip():
+        if r.status_code != 200:
             return jsonify({
-                "number": num,
-                "result": response.text.strip(),
-                "owner": "@Saksham24_11"
-            })
-        else:
+                "error": "Upstream API failed",
+                "status_code": r.status_code,
+                "owner": OWNER
+            }), 502
+
+        data = r.text.strip()
+        if not data:
             return jsonify({
-                "error": "API did not return data",
-                "owner": "@Saksham24_11"
-            })
+                "error": "No data found",
+                "owner": OWNER
+            }), 404
+
+        return jsonify({
+            "number": num,
+            "data": data,
+            "source": "ngrok-api",
+            "owner": OWNER
+        })
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "error": "Request timeout",
+            "owner": OWNER
+        }), 504
 
     except Exception as e:
         return jsonify({
-            "error": str(e),
-            "owner": "@Saksham24_11"
-        })
+            "error": "Server error",
+            "detail": str(e),
+            "owner": OWNER
+        }), 500
+
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render/Heroku dynamic port
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
