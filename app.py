@@ -5,13 +5,13 @@ import os
 app = Flask(__name__)
 
 API_URL = "https://prowessed-meta-semioratorically.ngrok-free.dev/search?num={}"
+OWNER = "@ravenxankit"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (API-Proxy)",
-    "Accept": "*/*"
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "application/json",
+    "ngrok-skip-browser-warning": "true"
 }
-
-OWNER = "@ravenxankit"
 
 @app.route("/")
 def home():
@@ -25,6 +25,7 @@ def home():
 def get_info():
     num = request.args.get("num", "").strip()
 
+    # validation
     if not num.isdigit() or not (10 <= len(num) <= 12):
         return jsonify({
             "error": "Invalid number format",
@@ -35,6 +36,14 @@ def get_info():
     try:
         url = API_URL.format(num)
         r = requests.get(url, headers=HEADERS, timeout=10)
+
+        # ngrok html protection check
+        if r.text.lstrip().startswith("<!DOCTYPE html"):
+            return jsonify({
+                "error": "ngrok security page detected",
+                "hint": "Free ngrok blocks API requests",
+                "owner": OWNER
+            }), 502
 
         if r.status_code != 200:
             return jsonify({
